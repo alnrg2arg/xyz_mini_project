@@ -1,6 +1,6 @@
 # Physical AI VLM Mini-Project (FetchReach)
 
-Physical AI 면접을 위해 **VLM을 실제 파이프라인에 연결**한 미니 프로젝트입니다.
+Physical AI 파이프라인에 **VLM을 실제로 연결**한 미니 프로젝트입니다.
 핵심은 정책 학습이 아니라 **데이터 정제/평가 레이어에 VLM을 붙여** 반복 속도를 높이는 것입니다.
 
 ## 내가 한 일 (요약)
@@ -9,11 +9,10 @@ Physical AI 면접을 위해 **VLM을 실제 파이프라인에 연결**한 미�
 - VLM 출력(1200 JSON, 에러 0)을 정량 평가 및 리포트로 연결
 - ROI 적용 전/후 성능을 ablation으로 비교
 
-## 파이프라인 개요
+## 파이프라인 개요 (end-to-end)
 
 ```
-[시뮬 데이터 수집] → [GT/키프레임] → [VLM 추론] → [평가/리포트]
-     Day 1                 Day 2           Day 3         Day 4
+[시뮬 데이터 수집] → [GT/키프레임 라벨링] → [VLM 태깅/판정] → [정량 평가] → [리포트/아블레이션]
 ```
 
 ## 디렉토리 구조 (핵심)
@@ -53,16 +52,16 @@ xyz/
     └── uncertain_samples.jsonl
 ```
 
-## 핵심 증거 (면접용)
+## 핵심 증거 (재현 가능 결과)
 - **VLM 실제 호출**: `dataset_v2/vlm/vlm_outputs.jsonl` (1200 lines)
 - **스키마 검증 0 에러**: `python validate_vlm_outputs.py`
 - **평가/리포트 연동**: `evaluate_judge.py`, `report_*`, `summary_with_images.md`
 
-## 결과 요약
-- **progress MAE / RMSE**: 0.2927 / 0.3555  
-- **p_success AUC**: 0.4655  
-- **ROI ablation (Δ)**: AUC +0.0219, MAE +0.0213  
-  (baseline/ROI 상세: `results/roi_ablation.md`)
+## 결과 및 성과 (요약)
+- **구조화 출력 안정화**: 1200건 VLM 출력, 스키마 검증 **errors=0**
+- **정량 지표**: progress MAE/RMSE **0.2927 / 0.3555**, p_success AUC **0.4655**
+- **ROI ablation**: AUC **+0.0219**, MAE **+0.0213** (baseline/ROI 상세: `results/roi_ablation.md`)
+- **리포트 산출물**: 실패 taxonomy, TP/FP/TN/FN 그리드, 불확실성 상위 샘플 자동 생성
 
 ## 예시 이미지 (TP/FP/TN)
 ![TP](results/assets/TP.png)
@@ -78,17 +77,17 @@ conda activate physai_vlm
 pip install -r requirements.txt
 ```
 
-### Day 1: 데이터 수집
+### 1) 데이터 수집
 ```bash
 python collect_fetch_dataset_v2.py
 ```
 
-### Day 2: 입력 생성
+### 2) 입력 생성
 ```bash
 python build_vlm_inputs.py
 ```
 
-### Day 3: VLM 실행 (structured outputs)
+### 3) VLM 실행 (structured outputs)
 ```bash
 export OPENAI_API_KEY="your-key"
 export VLM_MODEL="gpt-4o-mini"
@@ -96,7 +95,7 @@ python run_vlm_requests.py
 python validate_vlm_outputs.py
 ```
 
-### Day 4: 평가/리포트
+### 4) 평가/리포트
 ```bash
 python evaluate_judge.py
 python evaluate_success_auc.py
@@ -120,13 +119,13 @@ python summarize_results_with_images.py
 
 Stage enum: `approach | reach | align | idle | unknown`
 
-## 면접 포인트 (요약)
+## 프로젝트 리포트 요약 (핵심)
 
 - "정책 학습이 아니라 데이터/평가 레이어에 VLM을 적용"
 - "VLM 출력(1200 JSON, 에러 0)으로 정량 평가까지 연결"
 - "ROI ablation으로 비용/성능 트레이드오프 제시"
 
-## 제출용 파일 (면접관용)
+## 제출용 파일 (리포트)
 - `results/summary_with_images.md`
 - `results/confusion_grid_report.md`
 - `results/roi_ablation.md`
