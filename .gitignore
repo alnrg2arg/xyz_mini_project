@@ -1,0 +1,12 @@
+__pycache__/
+*.pyc
+.DS_Store
+.env
+
+# Raw datasets / frames (exclude heavy assets)
+dataset/frames/
+dataset_v2/frames/
+dataset_v2/frames_roi/
+
+# Optional: large intermediate caches
+results/*.png

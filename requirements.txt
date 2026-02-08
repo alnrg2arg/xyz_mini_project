@@ -1,0 +1,21 @@
+# Physical AI VLM Mini-Project Dependencies
+# For XYZ Interview Preparation
+
+# Core simulation
+mani-skill==3.0.0b12
+gymnasium>=0.29.0
+
+# Data processing
+numpy>=1.24.0
+opencv-python>=4.8.0
+imageio>=2.31.0
+tqdm>=4.65.0
+
+# VLM inference (Day 2+)
+openai>=1.0.0
+Pillow>=10.0.0
+
+# Analysis & visualization
+pandas>=2.0.0
+matplotlib>=3.7.0
+seaborn>=0.12.0
