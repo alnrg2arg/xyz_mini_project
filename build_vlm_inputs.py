@@ -15,6 +15,8 @@ from collections import defaultdict
 
 import numpy as np
 
+from physai_vlm.taxonomy import make_prompt_tagging, make_prompt_judge
+
 
 @dataclass
 class Cfg:
@@ -66,30 +68,6 @@ def pick_keyframes(frame_paths: List[str], k: int) -> List[str]:
         return frame_paths
     idx = np.linspace(0, len(frame_paths) - 1, k).round().astype(int)
     return [frame_paths[i] for i in idx]
-
-
-def make_prompt_tagging() -> str:
-    return (
-        "You are analyzing a robot manipulation episode frame.\n"
-        "Task: FetchReach (move gripper to target position).\n\n"
-        "Return ONLY valid JSON with fields:\n"
-        "- stage: one of [approach, reach, align, idle, unknown]\n"
-        "- failure_type: one of [goal_mismatch, slow_progress, oscillation, occlusion, unknown]\n"
-        "- confidence: number 0..1\n"
-        "- notes: one short sentence, only what is visually evident (no speculation)\n"
-    )
-
-
-def make_prompt_judge() -> str:
-    return (
-        "You are a success/progress judge for a robot manipulation episode frame.\n"
-        "Task: move the gripper to the target position.\n\n"
-        "Return ONLY valid JSON with fields:\n"
-        "- p_success: number 0..1 (probability the episode will succeed)\n"
-        "- progress: number 0..1 (how close to completion)\n"
-        "- uncertainty: number 0..1\n"
-        "- judge_notes: one short sentence (visual evidence only)\n"
-    )
 
 
 def main():

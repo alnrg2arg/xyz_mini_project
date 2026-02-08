@@ -16,6 +16,8 @@ from pathlib import Path
 from tqdm import tqdm
 from openai import OpenAI
 
+from physai_vlm.taxonomy import JUDGE_SCHEMA, TAG_SCHEMA
+
 
 MODEL = os.getenv("VLM_MODEL", "gpt-4o-mini")
 INPUT_JSONL = os.getenv("INPUT_JSONL", "dataset_v2/vlm/vlm_requests.jsonl")
@@ -23,36 +25,6 @@ OUTPUT_JSONL = os.getenv("OUTPUT_JSONL", "dataset_v2/vlm/vlm_outputs.jsonl")
 MAX_ITEMS = int(os.getenv("MAX_ITEMS", "0"))
 SKIP_EXISTING = True
 MAX_RETRIES = int(os.getenv("MAX_RETRIES", "3"))
-
-JUDGE_SCHEMA = {
-    "type": "object",
-    "properties": {
-        "p_success": {"type": "number", "minimum": 0, "maximum": 1},
-        "progress": {"type": "number", "minimum": 0, "maximum": 1},
-        "uncertainty": {"type": "number", "minimum": 0, "maximum": 1},
-        "judge_notes": {"type": "string"},
-    },
-    "required": ["p_success", "progress", "uncertainty", "judge_notes"],
-    "additionalProperties": False,
-}
-
-TAG_SCHEMA = {
-    "type": "object",
-    "properties": {
-        "stage": {
-            "type": "string",
-            "enum": ["approach", "reach", "align", "idle", "unknown"],
-        },
-        "failure_type": {
-            "type": "string",
-            "enum": ["goal_mismatch", "slow_progress", "oscillation", "occlusion", "unknown"],
-        },
-        "confidence": {"type": "number", "minimum": 0, "maximum": 1},
-        "notes": {"type": "string"},
-    },
-    "required": ["stage", "failure_type", "confidence", "notes"],
-    "additionalProperties": False,
-}
 
 
 def img_to_data_url(path: str) -> str:

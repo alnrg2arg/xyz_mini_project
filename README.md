@@ -1,12 +1,13 @@
-# Physical AI VLM Mini-Project
+# Physical AI VLM Mini-Project (FetchReach)
 
-VLM 기반 로봇 데이터 분석 프로젝트 (FetchReach)
+Physical AI 면접을 위해 **VLM을 실제 파이프라인에 연결**한 미니 프로젝트입니다.
+핵심은 정책 학습이 아니라 **데이터 정제/평가 레이어에 VLM을 붙여** 반복 속도를 높이는 것입니다.
 
-## 프로젝트 목표
-
-1. **VLM 로그 자동 태깅**: 프레임 기반 stage/failure_type 자동 분류
-2. **Success/Reward Judge**: VLM 기반 성공 확률/진행도 판정
-3. **ROI ablation**: ROI 적용 전/후 성능 비교
+## 내가 한 일 (요약)
+- 시뮬 데이터를 수집하고 GT(progress/성공)를 구성
+- 프레임 기반 VLM 태깅 + judge를 **structured outputs로 안정화**
+- VLM 출력(1200 JSON, 에러 0)을 정량 평가 및 리포트로 연결
+- ROI 적용 전/후 성능을 ablation으로 비교
 
 ## 파이프라인 개요
 
@@ -15,10 +16,13 @@ VLM 기반 로봇 데이터 분석 프로젝트 (FetchReach)
      Day 1                 Day 2           Day 3         Day 4
 ```
 
-## 디렉토리 구조
+## 디렉토리 구조 (핵심)
 
 ```
 xyz/
+├── physai_vlm/
+│   ├── __init__.py
+│   └── taxonomy.py                # Reach taxonomy + schemas
 ├── collect_fetch_dataset_v2.py     # FetchReach 데이터 수집
 ├── build_vlm_inputs.py             # keyframes/labels/requests 생성
 ├── run_vlm_requests.py             # VLM 실행 (structured outputs + retry)
@@ -48,6 +52,22 @@ xyz/
     ├── roi_ablation.md
     └── uncertain_samples.jsonl
 ```
+
+## 핵심 증거 (면접용)
+- **VLM 실제 호출**: `dataset_v2/vlm/vlm_outputs.jsonl` (1200 lines)
+- **스키마 검증 0 에러**: `python validate_vlm_outputs.py`
+- **평가/리포트 연동**: `evaluate_judge.py`, `report_*`, `summary_with_images.md`
+
+## 결과 요약
+- **progress MAE / RMSE**: 0.2927 / 0.3555  
+- **p_success AUC**: 0.4655  
+- **ROI ablation (Δ)**: AUC +0.0219, MAE +0.0213  
+  (baseline/ROI 상세: `results/roi_ablation.md`)
+
+## 예시 이미지 (TP/FP/TN)
+![TP](results/assets/TP.png)
+![FP](results/assets/FP.png)
+![TN](results/assets/TN.png)
 
 ## 설치 및 실행
 
@@ -100,8 +120,13 @@ python summarize_results_with_images.py
 
 Stage enum: `approach | reach | align | idle | unknown`
 
-## 면접 포인트
+## 면접 포인트 (요약)
 
 - "정책 학습이 아니라 데이터/평가 레이어에 VLM을 적용"
 - "VLM 출력(1200 JSON, 에러 0)으로 정량 평가까지 연결"
 - "ROI ablation으로 비용/성능 트레이드오프 제시"
+
+## 제출용 파일 (면접관용)
+- `results/summary_with_images.md`
+- `results/confusion_grid_report.md`
+- `results/roi_ablation.md`
