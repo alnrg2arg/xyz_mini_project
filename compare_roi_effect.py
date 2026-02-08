@@ -8,10 +8,10 @@ import os
 import numpy as np
 
 
-BASE_OUTPUTS = "dataset_v2/vlm/vlm_outputs.jsonl"
-ROI_OUTPUTS = "dataset_v2/vlm/vlm_outputs_roi.jsonl"
-LABELS_PATH = "dataset_v2/vlm/labels_gt.jsonl"
-OUT_MD = "results/roi_ablation.md"
+BASE_OUTPUTS = os.getenv("BASE_OUTPUTS", "dataset_v2/vlm/vlm_outputs.jsonl")
+ROI_OUTPUTS = os.getenv("ROI_OUTPUTS", "dataset_v2/vlm/vlm_outputs_roi.jsonl")
+LABELS_PATH = os.getenv("LABELS_PATH", "dataset_v2/vlm/labels_gt.jsonl")
+OUT_MD = os.getenv("OUT_MD", "results/roi_ablation.md")
 
 
 def load_jsonl(path):

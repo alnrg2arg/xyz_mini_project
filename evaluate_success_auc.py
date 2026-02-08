@@ -8,6 +8,7 @@ Requires:
 """
 
 import json
+import os
 import numpy as np
 
 
@@ -38,6 +39,7 @@ def compute_auc(y_true, y_score):
 
 
 def main():
+    outputs_path = os.getenv("OUTPUTS_PATH", "dataset_v2/vlm/vlm_outputs.jsonl")
     labels = {}
     for r in load_jsonl("dataset_v2/vlm/labels_gt.jsonl"):
         key = (r["episode_id"], r["t"], r["image_path"])
@@ -45,7 +47,7 @@ def main():
 
     y_true = []
     y_score = []
-    for r in load_jsonl("dataset_v2/vlm/vlm_outputs.jsonl"):
+    for r in load_jsonl(outputs_path):
         if r.get("type") != "judge":
             continue
         key = (r["episode_id"], r["t"], r["image_path"])

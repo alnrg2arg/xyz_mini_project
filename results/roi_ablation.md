@@ -2,10 +2,10 @@
 
 | Metric | Baseline | ROI | Δ (ROI - Base) |
 |---|---:|---:|---:|
-| mae | 0.2927 | 0.3140 | 0.0213 |
-| rmse | 0.3555 | 0.3753 | 0.0198 |
-| auc | 0.4655 | 0.4874 | 0.0219 |
-| best_f1 | 0.1605 | 0.1608 | 0.0003 |
+| mae | 0.3811 | 0.3783 | -0.0028 |
+| rmse | 0.4550 | 0.4533 | -0.0017 |
+| auc | 0.5309 | 0.5277 | -0.0033 |
+| best_f1 | 0.2009 | 0.1712 | -0.0297 |
 
-- best_f1 threshold (baseline): 0.6
-- best_f1 threshold (roi): 0.8
+- best_f1 threshold (baseline): 0.8
+- best_f1 threshold (roi): 0.6

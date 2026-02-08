@@ -8,8 +8,8 @@ import os
 from heapq import nlargest
 
 
-IN_PATH = "dataset_v2/vlm/vlm_outputs.jsonl"
-OUT_PATH = "results/uncertain_samples.jsonl"
+IN_PATH = os.getenv("OUTPUTS_PATH", "dataset_v2/vlm/vlm_outputs.jsonl")
+OUT_PATH = os.getenv("OUT_PATH", "results/uncertain_samples.jsonl")
 TOP_N = 50
 
 
@@ -42,7 +42,7 @@ def main():
 
     top = nlargest(TOP_N, candidates, key=lambda x: x[0])
 
-    os.makedirs("results", exist_ok=True)
+    os.makedirs(os.path.dirname(OUT_PATH) or ".", exist_ok=True)
     with open(OUT_PATH, "w", encoding="utf-8") as f:
         for unc, r in top:
             rec = {

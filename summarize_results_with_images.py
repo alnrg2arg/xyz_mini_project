@@ -16,10 +16,10 @@ def load_jsonl(path):
 
 
 def main():
-    out_path = "results/summary_with_images.md"
-    os.makedirs("results", exist_ok=True)
+    out_path = os.getenv("OUT_MD", "results/summary_with_images.md")
+    os.makedirs(os.path.dirname(out_path) or ".", exist_ok=True)
 
-    outputs_path = "dataset_v2/vlm/vlm_outputs.jsonl"
+    outputs_path = os.getenv("OUTPUTS_PATH", "dataset_v2/vlm/vlm_outputs.jsonl")
     if not os.path.exists(outputs_path):
         print("[WARN] No VLM outputs found:", outputs_path)
         return

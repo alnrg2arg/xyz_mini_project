@@ -16,10 +16,10 @@ def load_jsonl(path):
 
 def main():
     os.makedirs("results", exist_ok=True)
-    out_path = "results/summary.md"
+    out_path = os.getenv("OUT_MD", "results/summary.md")
 
     # Dataset stats
-    dataset_path = "dataset_v2/episodes.jsonl"
+    dataset_path = os.getenv("DATASET_PATH", "dataset_v2/episodes.jsonl")
     frames_dir = "dataset_v2/frames"
     env_id = None
     eps = set()
@@ -31,7 +31,7 @@ def main():
             success_eps.add(r["episode_id"])
 
     # VLM outputs stats
-    outputs_path = "dataset_v2/vlm/vlm_outputs.jsonl"
+    outputs_path = os.getenv("OUTPUTS_PATH", "dataset_v2/vlm/vlm_outputs.jsonl")
     tag_counts = Counter()
     stage_counts = Counter()
     judge_count = 0
@@ -72,6 +72,7 @@ def main():
     else:
         lines.append("- no VLM outputs found yet")
 
+    os.makedirs(os.path.dirname(out_path) or ".", exist_ok=True)
     with open(out_path, "w", encoding="utf-8") as f:
         f.write("\n".join(lines))
 

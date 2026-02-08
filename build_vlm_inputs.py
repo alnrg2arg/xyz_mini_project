@@ -37,19 +37,27 @@ def stage_heuristic(
     dist_obj_to_goal: Optional[float],
     is_success: bool,
 ) -> str:
+    """
+    FetchReach용 stage GT 휴리스틱.
+
+    NOTE:
+    - FetchReach-v4에서 achieved_goal은 보통 gripper 위치(=현재 상태),
+      desired_goal은 목표 위치이므로 dist_obj_to_goal ~= dist(gripper, goal).
+    - dist_grip_to_obj는 Reach에서는 의미가 약할 수 있어(0에 수렴하는 경우가 흔함).
+    """
     if is_success:
-        return "success"
-    if dist_grip_to_obj is None or dist_obj_to_goal is None:
+        return "idle"
+    if dist_obj_to_goal is None:
         return "unknown"
-    if dist_grip_to_obj > 0.10:
+
+    # 거리 기반으로만 stage를 구분 (간단/설명가능)
+    if dist_obj_to_goal > 0.15:
         return "approach"
-    if dist_grip_to_obj <= 0.10 and dist_obj_to_goal > 0.12:
-        return "grasp_or_lift"
-    if dist_obj_to_goal <= 0.12 and dist_obj_to_goal > 0.05:
-        return "transport"
-    if dist_obj_to_goal <= 0.05:
-        return "place"
-    return "unknown"
+    if dist_obj_to_goal > 0.05:
+        return "reach"
+    if dist_obj_to_goal > 0.01:
+        return "align"
+    return "idle"
 
 
 def progress_from_dist(dist_obj_to_goal: Optional[float]) -> float:
@@ -71,7 +79,12 @@ def pick_keyframes(frame_paths: List[str], k: int) -> List[str]:
 
 
 def main():
-    cfg = Cfg()
+    cfg = Cfg(
+        data_dir=os.getenv("DATA_DIR", "dataset_v2"),
+        frames_dir=os.getenv("FRAMES_DIR", "dataset_v2/frames"),
+        out_dir=os.getenv("OUT_DIR", "dataset_v2/vlm"),
+        keyframes_per_episode=int(os.getenv("KEYFRAMES_PER_EPISODE", "10")),
+    )
     os.makedirs(cfg.out_dir, exist_ok=True)
 
     meta_path = os.path.join(cfg.data_dir, "episodes.jsonl")
@@ -97,6 +110,7 @@ def main():
 
             step_by_t = {s["t"]: s for s in steps}
             frame_ts = [int(os.path.splitext(os.path.basename(p))[0]) for p in kf_paths]
+            ep_T = int(steps[-1]["t"]) if steps else 0
 
             for p, t in zip(kf_paths, frame_ts):
                 s = step_by_t.get(t, None)
@@ -119,12 +133,27 @@ def main():
                 }
                 fl.write(json.dumps(gt, ensure_ascii=False) + "\n")
 
+                # Build a tiny "clip" context for tagging (prev/current/next keyframe)
+                # This helps the model detect slow_progress / oscillation better than 1 frame.
+                try:
+                    idx = kf_paths.index(p)
+                except ValueError:
+                    idx = 0
+                clip_paths = []
+                for j in [max(0, idx - 1), idx, min(len(kf_paths) - 1, idx + 1)]:
+                    clip_paths.append(kf_paths[j])
+
+                context = f"Context: timestep {int(s['t'])} / {ep_T}."
+                tag_prompt = make_prompt_tagging() + "\n" + context
+                judge_prompt = make_prompt_judge() + "\n" + context
+
                 fr.write(json.dumps({
                     "type": "tagging",
                     "episode_id": ep,
                     "t": int(s["t"]),
                     "image_path": p,
-                    "prompt": make_prompt_tagging(),
+                    "image_paths": clip_paths,
+                    "prompt": tag_prompt,
                 }, ensure_ascii=False) + "\n")
 
                 fr.write(json.dumps({
@@ -132,7 +161,7 @@ def main():
                     "episode_id": ep,
                     "t": int(s["t"]),
                     "image_path": p,
-                    "prompt": make_prompt_judge(),
+                    "prompt": judge_prompt,
                 }, ensure_ascii=False) + "\n")
 
     print("[DONE] Wrote:")

@@ -4,12 +4,11 @@ Generate failure taxonomy report from VLM outputs.
 """
 
 import json
-from collections import Counter, defaultdict
 import os
+from collections import Counter, defaultdict
 
-IN_PATH = "dataset_v2/vlm/vlm_outputs.jsonl"
-OUT_MD = "results/failure_taxonomy_report.md"
-
+IN_PATH = os.getenv("OUTPUTS_PATH", "dataset_v2/vlm/vlm_outputs.jsonl")
+OUT_MD = os.getenv("OUT_MD", "results/failure_taxonomy_report.md")
 
 def main():
     counts = Counter()
@@ -51,7 +50,7 @@ def main():
             if notes:
                 lines.append(f"  - note: {notes}")
 
-    os.makedirs("results", exist_ok=True)
+    os.makedirs(os.path.dirname(OUT_MD) or ".", exist_ok=True)
     with open(OUT_MD, "w", encoding="utf-8") as f:
         f.write("\n".join(lines))
 

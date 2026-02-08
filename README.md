@@ -1,19 +1,31 @@
-# Physical AI VLM Mini-Project (FetchReach)
+# Physical AI VLM Mini-Project (FetchReach) — Project Report
 
-Physical AI 파이프라인에 **VLM을 실제로 연결**한 미니 프로젝트입니다.
-핵심은 정책 학습이 아니라 **데이터 정제/평가 레이어에 VLM을 붙여** 반복 속도를 높이는 것입니다.
+## 0. Executive summary
+이 프로젝트는 Physical AI 파이프라인에서 **데이터 정제/평가 레이어**를 자동화하기 위해,
+VLM을 “정책(policy)”이 아니라 **태깅기(tagger) + 판정기(judge)**로 연결한 end‑to‑end 미니 프로젝트입니다.
 
-## 내가 한 일 (요약)
-- 시뮬 데이터를 수집하고 GT(progress/성공)를 구성
-- 프레임 기반 VLM 태깅 + judge를 **structured outputs로 안정화**
-- VLM 출력(1200 JSON, 에러 0)을 정량 평가 및 리포트로 연결
-- ROI 적용 전/후 성능을 ablation으로 비교
+핵심 결과는 다음과 같습니다.
+- VLM 호출 결과 1200건을 **구조화 출력(JSON Schema)로 수집**했고 스키마 검증 **errors=0**을 달성했습니다.
+- progress 추정과 p_success 분류를 지표화해 **평가 루프**를 만들었고, ROI 적용 전/후를 ablation으로 비교했습니다.
 
-## 파이프라인 개요 (end-to-end)
+## 1. Problem statement
+Physical AI에서 반복(iteration)이 느려지는 대표 병목은 다음입니다.
+- 로그/프레임이 쌓여도 “무슨 일이 일어났는지” 정리(태깅)와 평가가 어렵다.
+- reward/성공 판정기가 없거나 비용이 커서, 학습/검증 루프가 느리다.
 
-```
-[시뮬 데이터 수집] → [GT/키프레임 라벨링] → [VLM 태깅/판정] → [정량 평가] → [리포트/아블레이션]
-```
+따라서 이 프로젝트는 **프레임 → (stage/failure_type) + (progress/p_success)**를 생성하고,
+그 출력이 그대로 지표/리포트로 이어지는 “증거 체인”을 목표로 합니다.
+
+## 2. System overview (A→Z)
+1) **Data collection**: FetchReach-v4 에피소드 수집 + 프레임 저장  
+2) **GT labeling**: dist 기반 progress_gt, is_success_episode_so_far 구성  
+3) **Keyframe sampling**: 에피소드당 균등 샘플링으로 10개 키프레임 선정  
+4) **VLM requests**: tagging/judge 요청 JSONL 생성 (tagging은 3‑frame mini‑clip을 함께 전달)  
+5) **VLM inference**: Responses API + Structured Outputs(JSON Schema) + retry  
+6) **Validation**: 출력 스키마 검증(누락/enum 이탈 방지)  
+7) **Evaluation**: progress MAE/RMSE, p_success AUC/PR, confusion grid  
+8) **Reporting**: taxonomy/그리드/불확실성 샘플/요약 리포트 생성  
+9) **Ablation**: ROI crop 전/후 성능 비교(roi_ablation.md)
 
 ## 디렉토리 구조 (핵심)
 
@@ -37,7 +49,8 @@ xyz/
 │   ├── episodes.jsonl
 │   ├── frames/                      # 원본 프레임 (git 제외)
 │   ├── frames_roi/                  # ROI 프레임 (git 제외)
-│   └── vlm/
+│   ├── vlm/                          # (기존 실험 산출물)
+│   └── vlm_v2/                        # (현재 리포트의 정본)
 │       ├── keyframes.jsonl
 │       ├── labels_gt.jsonl
 │       ├── vlm_requests.jsonl
@@ -52,16 +65,56 @@ xyz/
     └── uncertain_samples.jsonl
 ```
 
-## 핵심 증거 (재현 가능 결과)
-- **VLM 실제 호출**: `dataset_v2/vlm/vlm_outputs.jsonl` (1200 lines)
-- **스키마 검증 0 에러**: `python validate_vlm_outputs.py`
-- **평가/리포트 연동**: `evaluate_judge.py`, `report_*`, `summary_with_images.md`
+## 3. Evidence chain (재현 가능 결과)
+- **입력**: `dataset_v2/vlm_v2/vlm_requests.jsonl` (tagging/judge, 총 1200 요청)
+- **출력**: `dataset_v2/vlm_v2/vlm_outputs.jsonl` (1200 lines; tagging 600 / judge 600)
+- **검증**: `OUTPUTS_PATH=... python validate_vlm_outputs.py` → errors=0
+- **평가/리포트**: `evaluate_*.py`, `report_*.py`, `results/*.md`
 
-## 결과 및 성과 (요약)
-- **구조화 출력 안정화**: 1200건 VLM 출력, 스키마 검증 **errors=0**
-- **정량 지표**: progress MAE/RMSE **0.2927 / 0.3555**, p_success AUC **0.4655**
-- **ROI ablation**: AUC **+0.0219**, MAE **+0.0213** (baseline/ROI 상세: `results/roi_ablation.md`)
-- **리포트 산출물**: 실패 taxonomy, TP/FP/TN/FN 그리드, 불확실성 상위 샘플 자동 생성
+## 4. Dataset & labeling
+- **Env**: FetchReach-v4
+- **Episodes**: 60 (성공 에피소드 6 포함)
+- **Frames**: 1500 (fps_sample=2)
+- **GT**
+  - `is_success_episode_so_far`: info의 `is_success` 기반
+  - `progress_gt`: dist(achieved_goal, desired_goal) 기반으로 [0,1] 스케일링
+  - `stage_gt`: dist 기반 간단 휴리스틱(설명 가능/가볍게)
+
+## 5. VLM I/O contract (Structured Outputs)
+스키마/enum은 `physai_vlm/taxonomy.py` 단일 정의를 사용합니다.
+
+- **tagging output**: stage/failure_type/confidence/notes  
+- **judge output**: p_success/progress/uncertainty/judge_notes  
+
+## 6. Metrics (정량 평가)
+- **progress**: MAE, RMSE (600 프레임)
+- **success**: ROC AUC, PR table (600 프레임, pos=51/neg=549)
+- **error analysis**
+  - confusion grid: TP/FP/TN/FN 예시 프레임
+  - uncertainty top‑N: human audit 대상으로 추출
+
+## 7. Results
+- **Structured outputs 안정성**: 1200 outputs, validation errors=0
+- **progress**: MAE/RMSE = **0.3811 / 0.4550**
+- **p_success**: AUC = **0.5309**
+- **tagging 분포(관측)**:
+  - stage: approach 466 / reach 89 / align 45
+  - failure_type: slow_progress 478 / unknown 122
+
+### ROI ablation
+ROI(중앙 crop, ratio=0.6) 전/후 비교 결과는 `results/roi_ablation.md` 참고.
+
+## 8. Example images (TP/FP/TN)
+![TP](results/assets/TP.png)
+![FP](results/assets/FP.png)
+![TN](results/assets/TN.png)
+
+## 9. Limitations & next steps
+- **tagging 품질**: v2에서 `unknown` 비율이 감소했지만(600→122), failure_type이 `slow_progress`로 쏠리는 경향이 있음.  
+  - 개선: progress_gt/시점 정보를 더 강하게 주거나(현재 이미 `t/T`를 제공), clip 길이 증가(예: 5프레임), 또는 failure_type을 “운영 목적”에 맞게 재정의
+- **p_success 성능**: 프레임 단위 라벨이 “episode 성공”과 직접 대응하지 않아 noisy할 수 있음.  
+  - 개선: episode-level success 예측/칼리브레이션, 임계값별 운영 정책(예: stop/slowdown)
+- **현장 확장**: 다음 단계에서는 실제 로그(다중 카메라/상태/지연)까지 결합한 triage 도구로 확장
 
 ## 예시 이미지 (TP/FP/TN)
 ![TP](results/assets/TP.png)
@@ -84,27 +137,29 @@ python collect_fetch_dataset_v2.py
 
 ### 2) 입력 생성
 ```bash
-python build_vlm_inputs.py
+OUT_DIR="dataset_v2/vlm_v2" python build_vlm_inputs.py
 ```
 
 ### 3) VLM 실행 (structured outputs)
 ```bash
 export OPENAI_API_KEY="your-key"
 export VLM_MODEL="gpt-4o-mini"
+export INPUT_JSONL="dataset_v2/vlm_v2/vlm_requests.jsonl"
+export OUTPUT_JSONL="dataset_v2/vlm_v2/vlm_outputs.jsonl"
 python run_vlm_requests.py
-python validate_vlm_outputs.py
+OUTPUTS_PATH="dataset_v2/vlm_v2/vlm_outputs.jsonl" python validate_vlm_outputs.py
 ```
 
 ### 4) 평가/리포트
 ```bash
-python evaluate_judge.py
-python evaluate_success_auc.py
-python evaluate_success_pr.py
-python report_taxonomy.py
-python report_confusion_grid.py
-python extract_uncertain_samples.py
-python summarize_results.py
-python summarize_results_with_images.py
+OUTPUTS_PATH="dataset_v2/vlm_v2/vlm_outputs.jsonl" python evaluate_judge.py
+OUTPUTS_PATH="dataset_v2/vlm_v2/vlm_outputs.jsonl" python evaluate_success_auc.py
+OUTPUTS_PATH="dataset_v2/vlm_v2/vlm_outputs.jsonl" python evaluate_success_pr.py
+OUTPUTS_PATH="dataset_v2/vlm_v2/vlm_outputs.jsonl" OUT_MD="results/failure_taxonomy_report.md" python report_taxonomy.py
+OUTPUTS_PATH="dataset_v2/vlm_v2/vlm_outputs.jsonl" LABELS_PATH="dataset_v2/vlm_v2/labels_gt.jsonl" OUT_MD="results/confusion_grid_report.md" python report_confusion_grid.py
+OUTPUTS_PATH="dataset_v2/vlm_v2/vlm_outputs.jsonl" OUT_PATH="results/uncertain_samples.jsonl" python extract_uncertain_samples.py
+OUTPUTS_PATH="dataset_v2/vlm_v2/vlm_outputs.jsonl" DATASET_PATH="dataset_v2/episodes.jsonl" OUT_MD="results/summary.md" python summarize_results.py
+OUTPUTS_PATH="dataset_v2/vlm_v2/vlm_outputs.jsonl" OUT_MD="results/summary_with_images.md" python summarize_results_with_images.py
 ```
 
 ## Reach Taxonomy
@@ -118,12 +173,6 @@ python summarize_results_with_images.py
 | unknown | 미분류 |
 
 Stage enum: `approach | reach | align | idle | unknown`
-
-## 프로젝트 리포트 요약 (핵심)
-
-- "정책 학습이 아니라 데이터/평가 레이어에 VLM을 적용"
-- "VLM 출력(1200 JSON, 에러 0)으로 정량 평가까지 연결"
-- "ROI ablation으로 비용/성능 트레이드오프 제시"
 
 ## 제출용 파일 (리포트)
 - `results/summary_with_images.md`

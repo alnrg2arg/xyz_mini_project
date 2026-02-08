@@ -8,9 +8,9 @@ import os
 from collections import defaultdict
 
 
-LABELS_PATH = "dataset_v2/vlm/labels_gt.jsonl"
-OUTPUTS_PATH = "dataset_v2/vlm/vlm_outputs.jsonl"
-OUT_MD = "results/confusion_grid_report.md"
+LABELS_PATH = os.getenv("LABELS_PATH", "dataset_v2/vlm/labels_gt.jsonl")
+OUTPUTS_PATH = os.getenv("OUTPUTS_PATH", "dataset_v2/vlm/vlm_outputs.jsonl")
+OUT_MD = os.getenv("OUT_MD", "results/confusion_grid_report.md")
 THRESHOLD = 0.5
 MAX_EXAMPLES_PER_CELL = 6
 
@@ -69,7 +69,7 @@ def main():
                 "p_success": p,
             })
 
-    os.makedirs("results", exist_ok=True)
+    os.makedirs(os.path.dirname(OUT_MD) or ".", exist_ok=True)
     lines = []
     lines.append("# Confusion Grid Report\n")
     lines.append(f"- threshold: {THRESHOLD}\n")

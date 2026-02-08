@@ -4,6 +4,7 @@ Validate VLM outputs against expected schema.
 """
 
 import json
+import os
 
 
 def load_jsonl(path):
@@ -13,7 +14,7 @@ def load_jsonl(path):
 
 
 def main():
-    path = "dataset_v2/vlm/vlm_outputs.jsonl"
+    path = os.getenv("OUTPUTS_PATH", "dataset_v2/vlm/vlm_outputs.jsonl")
     required_common = {"type", "episode_id", "t", "image_path", "output"}
     required_tagging = {"stage", "failure_type"}
     required_judge = {"p_success", "progress", "uncertainty"}

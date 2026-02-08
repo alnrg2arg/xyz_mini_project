@@ -130,6 +130,42 @@ def call_with_retry(client, rtype: str, prompt: str, data_url: str) -> Dict[str,
     return {"raw_text": f"error: {last_error}"}
 
 
+def call_with_retry_multi_image(client, rtype: str, prompt: str, data_urls) -> Dict[str, Any]:
+    schema = JUDGE_SCHEMA if rtype == "judge" else TAG_SCHEMA
+    name = "judge" if rtype == "judge" else "tagging"
+
+    last_error = None
+    for attempt in range(1, MAX_RETRIES + 1):
+        try:
+            content = [{"type": "input_text", "text": prompt}]
+            for u in data_urls:
+                content.append({"type": "input_image", "image_url": u})
+
+            resp = client.responses.create(
+                model=MODEL,
+                input=[{"role": "user", "content": content}],
+                text={
+                    "format": {
+                        "type": "json_schema",
+                        "strict": True,
+                        "schema": schema,
+                        "name": name,
+                    }
+                },
+            )
+            out_text = extract_output_text(resp)
+            parsed = safe_json_parse(out_text)
+            if parsed and validate_output(rtype, parsed):
+                return parsed
+            last_error = "schema_validation_failed"
+        except Exception as e:
+            last_error = str(e)
+
+        time.sleep(2 ** (attempt - 1))
+
+    return {"raw_text": f"error: {last_error}"}
+
+
 def main():
     api_key = os.getenv("OPENAI_API_KEY")
     if not api_key:
@@ -154,8 +190,14 @@ def main():
             if SKIP_EXISTING and key in existing:
                 continue
 
-            data_url = img_to_data_url(image_path)
-            parsed = call_with_retry(client, rtype, prompt, data_url)
+            # support single-frame (image_path) or multi-frame (image_paths)
+            image_paths = req.get("image_paths")
+            if isinstance(image_paths, list) and len(image_paths) > 0:
+                data_urls = [img_to_data_url(p) for p in image_paths]
+                parsed = call_with_retry_multi_image(client, rtype, prompt, data_urls)
+            else:
+                data_url = img_to_data_url(image_path)
+                parsed = call_with_retry(client, rtype, prompt, data_url)
 
             out_rec = {
                 "type": rtype,
